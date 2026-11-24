@@ -48,6 +48,11 @@ svg { flex: none; }
 .subrow button, .subrow a { height: 44px; padding: 0 8px; border: 0; background: none; display: flex; align-items: center; gap: 6px;
   font-size: 13px; font-weight: 600; text-decoration: none; }
 .subrow svg.dim { color: var(--muted); }
+.sortsel { display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px; font-size: 13px; font-weight: 600; color: var(--fg); }
+.sortsel svg { color: var(--muted); }
+.sortsel select { appearance: none; -webkit-appearance: none; height: 44px; border: 0; background: transparent; color: var(--fg);
+  font-size: 13px; font-weight: 600; padding: 0 2px; cursor: pointer; }
+.sortsel select option { background: var(--s1); color: var(--fg); }
 .list { list-style: none; margin: 0; padding: 0 0 88px; }
 .row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 16px; text-decoration: none; color: var(--fg); }
 .row:active { background: var(--s1); }
@@ -332,9 +337,17 @@ function baseMatch(r) {                      // everything except the gear limit
   }
   return true;
 }
+const diffOr = (r, none) => tg(r).intensity || none;   // unrated classes go last either way
+const SORTS = {
+  len:  ['Shortest first', (a, b) => a.dur - b.dur],
+  easy: ['Easiest first', (a, b) => (diffOr(a, 9) - diffOr(b, 9)) || a.dur - b.dur],
+  hard: ['Hardest first', (a, b) => (diffOr(b, 0) - diffOr(a, 0)) || a.dur - b.dur],
+  az:   ['A–Z', (a, b) => a.name.localeCompare(b.name, 'es')],
+};
+if (!(state.sort in SORTS)) state.sort = 'len';
 function results() {
   const base = R.filter(baseMatch), list = base.filter(hasGear);
-  list.sort(state.sort === 'az' ? (a, b) => a.name.localeCompare(b.name, 'es') : (a, b) => a.dur - b.dur);
+  list.sort(SORTS[state.sort][1]);
   return { list, hidden: base.length - list.length };
 }
 const activeFilters = () => (state.fits !== 'Any') + state.quiet +
@@ -359,12 +372,13 @@ function library() {
       <div class="titlerow"><h1>${tabName}</h1><span id="count"></span></div>
       <div class="search">${ic('search', 18)}<input id="q" type="search" aria-label="Search classes or exercises" placeholder="Search classes or exercises" autocomplete="off"></div>
       <div class="chiprow" role="group" aria-label="Limits and filters" id="chips"></div>
-      <div class="subrow"><button type="button" id="sort"></button><a href="#/filters/gear" id="hiddenlink" hidden></a></div>
+      <div class="subrow"><label class="sortsel">${ic('sort', 16)}<select id="sort" aria-label="Sort classes">${Object.entries(SORTS).map(([k, [l]]) =>
+        `<option value="${k}">${l}</option>`).join('')}</select>${ic('down', 14)}</label><a href="#/filters/gear" id="hiddenlink" hidden></a></div>
     </header><ul class="list" id="list" aria-label="Classes"></ul>
     <p class="credit">Routines transcribed from the free <a href="https://www.youtube.com/channel/UCjYhS8nd7ETpwRrY69QudMg" target="_blank" rel="noopener">Trainingym</a> YouTube classes (not affiliated); the YouTube button opens the original video at that exercise.${PUBLIC ? ' Exercise photos: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener">free-exercise-db</a> (public domain), shown only where the movement matches.' : ''}</p>`;
     const q = $('#q'); q.value = state.q;
     let qt; q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { state.q = q.value.trim(); refresh(); }, 120); });
-    $('#sort').onclick = () => { setF('sort', state.sort === 'len' ? 'az' : 'len'); refresh(); };
+    $('#sort').onchange = e => { setF('sort', e.target.value); refresh(); window.scrollTo(0, 0); };
   }
   refresh();
   tabbar(true);
@@ -378,8 +392,7 @@ function refresh() {
     <button type="button" class="pill${state.fits !== 'Any' ? ' sel' : ''}" onclick="location.hash='#/filters'">${ic('clock', 18)}<span>${state.fits === 'Any' ? 'Any length' : 'Fits in ' + state.fits}</span>${ic('down', 16)}</button>
     <button type="button" class="pill${state.quiet ? ' sel' : ''}" id="quietpill" aria-pressed="${state.quiet}">${ic('feather', 18)}<span>Quiet</span></button>`;
   $('#quietpill').onclick = () => { setF('quiet', !state.quiet); refresh(); };
-  $('#sort').innerHTML = `${ic('sort', 16)}<span>${state.sort === 'az' ? 'A–Z' : 'Shortest first'}</span>`;
-  $('#sort').setAttribute('aria-label', 'Sort: ' + (state.sort === 'az' ? 'A to Z' : 'shortest first') + '. Tap to change');
+  $('#sort').value = state.sort;
   const hl = $('#hiddenlink'); hl.hidden = !hidden; hl.innerHTML = `${ic('hidden', 16)}<span>${hidden} hidden — change gear</span>`;
   $('#list').innerHTML = list.length ? list.map(rowHTML).join('') :
     `<li class="empty">${state.q ? 'No class matches that search.' : 'No class fits these filters. Try a longer time, or turn off Quiet.'}</li>`;
