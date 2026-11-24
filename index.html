@@ -300,7 +300,8 @@ const dots = (n, big) => n ? `<span class="dots${big ? ' big' : ''}" role="img" 
   `<i${i <= n ? ` style="background:${DIFF[n]};box-shadow:none"` : ''}></i>`).join('')}</span>` : '';
 
 /* ---------- filters ---------- */
-const TABS = [['Workout', 'Workouts', 'dumbbell'], ['Warm-up', 'Warm-ups', 'sunrise'], ['Cool-down & mobility', 'Cool-down', 'wind']];
+// session order: warm up → work out → cool down (Workouts stays the default tab, in the middle)
+const TABS = [['Warm-up', 'Warm-ups', 'sunrise'], ['Workout', 'Workouts', 'dumbbell'], ['Cool-down & mobility', 'Cool-down', 'wind']];
 const GEAR_GROUPS = [['Household', ['chair/box', 'towel', 'paper rolls', 'sliders']],
                      ['Light gear', ['band', 'fitball', 'foam roller']],
                      ['Weights', ['dumbbells', 'kettlebell', 'barbell']]];
