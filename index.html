@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Workout Timer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Phone-first dark UI (approved mockup): one column, bottom tab bar, bottom sheet for filters, full-screen timer. */
+:root {
+  --bg: #0f1115; --s1: #181b22; --s2: #21252e; --line: #2c313c; --line2: #3a404c;
+  --fg: #eef0f3; --muted: #aab0bb; --faint: #8b929e; --accent: #8ab0ff; --on-accent: #0c1222;
+  --rest-row: #0f2624; --rest-line: #1d4440; --rest-ink: #7fe0d3;
+  --font: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+svg { flex: none; }
+.app { max-width: 520px; margin: 0 auto; min-height: 100vh; }
+
+/* ---------- library ---------- */
+.lib-head { position: sticky; top: 0; z-index: 4; background: var(--bg); padding: 12px 16px 0; }
+.titlerow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.titlerow h1 { margin: 0; font-size: 26px; line-height: 32px; font-weight: 800; letter-spacing: -.02em; }
+.titlerow span { font-size: 13px; color: var(--muted); }
+.search { position: relative; margin-top: 10px; }
+.search svg { position: absolute; left: 14px; top: 13px; color: var(--faint); pointer-events: none; }
+.search input { display: block; width: 100%; height: 44px; padding: 0 14px 0 42px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--s1); outline: none; font-size: 15px; }
+.chiprow { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 12px 16px 0; margin: 0 -16px; }
+.chiprow::-webkit-scrollbar { display: none; }
+.pill { flex: none; height: 44px; padding: 0 12px 0 14px; border-radius: 22px; border: 1px solid var(--line2); background: transparent;
+  font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.pill.sel { border-color: #5677c0; background: #1c2538; color: #dbe5ff; }
+.pill.strong { background: var(--s2); font-weight: 700; }
+.badge { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--accent); color: var(--on-accent);
+  font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.subrow { display: flex; align-items: center; justify-content: space-between; padding: 6px 0 4px; margin: 0 -8px; }
+.subrow button, .subrow a { height: 44px; padding: 0 8px; border: 0; background: none; display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; text-decoration: none; }
+.subrow svg.dim { color: var(--muted); }
+.list { list-style: none; margin: 0; padding: 0 0 88px; }
+.row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 16px; text-decoration: none; color: var(--fg); }
+.row:active { background: var(--s1); }
+.tile { flex: none; width: 64px; height: 64px; border-radius: 14px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 5px; font-size: 10px; line-height: 12px; font-weight: 800; letter-spacing: .03em; }
+.rbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding-top: 2px; }
+.rtop { display: flex; gap: 10px; align-items: flex-start; }
+.rname { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; line-height: 20px; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; }
+.rmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; line-height: 18px; color: var(--muted); }
+.tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 6px; background: var(--s2);
+  color: #cfd4dc; font-size: 12px; font-weight: 600; }
+.dots { flex: none; display: inline-flex; gap: 3px; padding-top: 7px; }
+.dots i { width: 6px; height: 6px; border-radius: 3px; box-shadow: inset 0 0 0 1.5px #6b7280; }
+.dots.big i { width: 7px; height: 7px; border-radius: 4px; }
+.empty { padding: 24px 16px; color: var(--muted); }
+.credit { padding: 8px 16px 0; color: var(--faint); font-size: 12px; }
+.credit a { color: var(--muted); }
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid #22262f;
+  padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabbar .in { max-width: 520px; margin: 0 auto; height: 64px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tabbar button { border: 0; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.tabbar button span { width: 56px; height: 30px; border-radius: 15px; display: flex; align-items: center; justify-content: center; }
+.tabbar button[aria-current="page"] { color: var(--accent); font-weight: 700; }
+.tabbar button[aria-current="page"] span { background: #1c2538; }
+
+/* ---------- filters sheet ---------- */
+.backdrop { position: fixed; inset: 0; z-index: 8; background: rgba(5, 6, 8, .74); }
+.sheet { position: fixed; z-index: 9; left: 0; right: 0; bottom: 0; top: 44px; max-width: 520px; margin: 0 auto; background: var(--s1);
+  border-radius: 22px 22px 0 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.grab { flex: none; display: flex; justify-content: center; padding-top: 8px; }
+.grab i { width: 40px; height: 5px; border-radius: 3px; background: #4a505c; }
+.sheet-head { flex: none; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 6px 0 16px; }
+.sheet-head h2 { margin: 0; font-size: 20px; font-weight: 800; }
+.iconbtn { width: 44px; height: 44px; border-radius: 22px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.fs-label { margin: 0 0 6px; font-size: 15px; line-height: 18px; font-weight: 700; }
+.seg { display: grid; gap: 6px; }
+.opt { height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line2); background: var(--s2); font-size: 14px;
+  font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap; }
+.opt[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--on-accent); font-weight: 800; }
+.opt .sw { width: 10px; height: 10px; border-radius: 3px; }
+.opt.stack { flex-direction: column; gap: 3px; font-size: 13px; line-height: 16px; }
+.wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.wrap .opt { flex: 1 1 auto; }
+.switchrow { display: flex; align-items: center; gap: 12px; min-height: 48px; border: 0; background: none; padding: 0; text-align: left; width: 100%; }
+.switchrow .txt { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.switchrow .txt b { font-size: 15px; } .switchrow .txt span { font-size: 13px; color: var(--muted); }
+.switch { flex: none; width: 52px; height: 32px; border-radius: 16px; background: var(--line2); position: relative; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 13px; background: var(--fg); transition: left .15s; }
+.switchrow[aria-checked="true"] .switch { background: var(--accent); }
+.switchrow[aria-checked="true"] .switch::after { left: 23px; background: var(--on-accent); }
+.gear { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 10px; }
+.gear h3 { height: 22px; margin: 0; display: flex; align-items: flex-end; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.gear label { min-height: 44px; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+.gear input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+.sheet-foot { flex: none; display: flex; gap: 10px; padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
+.btn { height: 52px; padding: 0 20px; border-radius: 14px; border: 1px solid var(--line2); background: transparent; font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; color: var(--fg); }
+.btn.primary { flex: 1; border: 0; background: var(--accent); color: var(--on-accent); font-size: 16px; font-weight: 800; }
+.btn .sub { font-size: 14px; font-weight: 600; color: #26344f; }
+
+/* ---------- class page ---------- */
+.band { position: sticky; top: 0; z-index: 3; height: 60px; display: flex; align-items: center; gap: 8px; padding: 0 16px 0 8px;
+  font-size: 13px; font-weight: 800; letter-spacing: .1em; }
+.band .back { width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; color: inherit;
+  background: rgba(0, 0, 0, .12); }
+.chead { padding: 14px 16px 0; }
+.eyebrow { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.chead h1 { margin: 2px 0 0; font-size: 24px; line-height: 30px; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+.chips { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip { height: 26px; padding: 0 10px; border-radius: 8px; background: var(--s2); border: 1px solid var(--line2); font-size: 12px;
+  font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.chip .dots { padding-top: 0; }
+.cmeta { margin: 8px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
+.cmeta b { color: var(--fg); font-weight: 600; }
+.notes { margin: 10px 0 0; font-size: 13px; line-height: 18px; color: var(--muted); }
+.lengths { margin-top: 12px; display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 0 16px; }
+.lengths::-webkit-scrollbar { display: none; }
+.lengths .lab { flex: none; font-size: 11px; line-height: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.lengths a, .lengths span.cur { flex: none; height: 44px; padding: 0 12px; border-radius: 12px; background: var(--s1); border: 1px solid var(--line);
+  color: var(--fg); display: flex; align-items: center; gap: 6px; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.lengths span.cur { background: #1c2538; border-color: #5677c0; color: #dbe5ff; }
+.lengths b { font-weight: 800; } .lengths a span { color: var(--muted); }
+.routine-h { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 16px; height: 44px; margin-top: 6px; }
+.routine-h h2 { margin: 0; font-size: 17px; font-weight: 800; }
+.grp { margin: 0; padding: 8px 16px 2px; font-size: 11px; line-height: 18px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.steps { list-style: none; margin: 0; padding: 0; }
+.ex { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 2px 4px 2px 16px; }
+.ex .ph { flex: none; width: 40px; height: 40px; border-radius: 8px; background: var(--s2); border: 1px solid var(--line); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; color: var(--faint); }
+.ex .ph img { width: 100%; height: 100%; object-fit: cover; }
+.ex .nm { flex: 1; min-width: 0; }
+.ex .nm b { display: block; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex .nm span { display: block; font-size: 12px; line-height: 16px; color: var(--muted); }
+.ex .amt { flex: none; font-size: 14px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.yt { flex: none; width: 48px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+.restrow { margin: 4px 16px; min-height: 36px; border-radius: 10px; background: var(--rest-row); border: 1px solid var(--rest-line);
+  display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--rest-ink); font-size: 14px; font-weight: 700; }
+.startbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 4; background: var(--bg); border-top: 1px solid var(--line);
+  padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+.startbar .in { max-width: 488px; margin: 0 auto; display: flex; }
+.cpage { padding-bottom: 96px; }
+
+/* ---------- timer ---------- */
+.player { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; overflow: hidden; background: var(--tint); color: var(--fg);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --ph: #e0484e; --ph-ink: #170809; --tint: #2b1618; --surf: #3a2124; --surf2: #3d2326; --pline: #6a3c41; --pmuted: #d6c8c9; --track: #47262a; }
+.player.prep { --ph: #f7b538; --ph-ink: #1a1204; --tint: #2a2213; --surf: #3a3020; --surf2: #3d321c; --pline: #6b5830; --pmuted: #ddd3bf; --track: #4a3c1f; }
+.player.rest { --ph: #22ad9c; --ph-ink: #04140f; --tint: #0f2624; --surf: #16352f; --surf2: #1a3c37; --pline: #2f6a62; --pmuted: #b9e3dc; --track: #1d4440; }
+.player.done { --ph: #8ab0ff; --ph-ink: #0c1222; --tint: #0f1115; --surf: #181b22; --surf2: #21252e; --pline: #3a404c; --pmuted: #aab0bb; --track: #2c313c; }
+.p-in { flex: 1; min-height: 0; width: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; }
+.p-head { flex: none; height: 60px; padding: 8px 16px 0; display: flex; align-items: center; gap: 8px; }
+.p-head .x { width: 48px; height: 48px; border-radius: 24px; border: 0; background: var(--surf2); display: flex; align-items: center; justify-content: center; }
+.p-title { flex: 1; min-width: 0; text-align: center; }
+.p-title b { display: block; font-size: 15px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-title span { font-size: 13px; line-height: 18px; color: var(--pmuted); }
+.p-left { flex: none; width: 60px; text-align: right; }
+.p-left b { display: block; font-size: 17px; line-height: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.p-left span { font-size: 11px; color: var(--pmuted); font-weight: 600; }
+.p-prog { flex: none; margin: 10px 16px 0; height: 4px; border-radius: 2px; background: var(--track); overflow: hidden; }
+.p-prog i { display: block; height: 100%; width: 0; background: var(--fg); }
+.p-banner { flex: none; margin: 12px 16px 0; height: 52px; border-radius: 14px; background: var(--ph); color: var(--ph-ink);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.p-banner .lbl { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 800; letter-spacing: .12em; }
+.p-banner .dur { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ring { flex: none; position: relative; width: 210px; height: 210px; margin: 12px auto 0; }
+.ring svg { display: block; }
+.ring .num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring .clock { font-size: 120px; line-height: .92; font-weight: 800; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: #fff; }
+.ring .of { margin-top: 6px; font-size: 14px; font-weight: 600; color: var(--pmuted); }
+.ring .pips { display: none; gap: 10px; margin-top: 8px; }
+.ring .pips i { width: 12px; height: 12px; border-radius: 6px; background: #fff; opacity: .25; }
+.ring .pips i.on { opacity: 1; }
+.player.final .ring .pips { display: flex; } .player.final .ring .of { display: none; }
+.player.final .ring .clock { font-size: 140px; }
+.flash { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.flash.go { animation: edge .45s ease-out; }
+@keyframes edge { from { box-shadow: inset 0 0 0 8px var(--ph); } to { box-shadow: inset 0 0 0 0 var(--ph); } }
+@media (prefers-reduced-motion: reduce) { .flash.go { animation: none; } .player.final { box-shadow: inset 0 0 0 4px var(--ph); } }
+.p-up { flex: none; margin-top: 8px; text-align: center; font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--pmuted); }
+.p-name { flex: none; margin: 6px 16px 0; text-align: center; font-size: 28px; line-height: 34px; font-weight: 800; letter-spacing: -.02em; text-wrap: balance; }
+.p-sub { flex: none; min-height: 18px; text-align: center; font-size: 14px; color: var(--pmuted); }
+.p-media { flex: 1 1 0px; min-height: 72px; max-height: 150px; position: relative; margin: 10px 16px 0; border-radius: 14px; background: var(--surf);
+  border: 1px solid var(--pline); overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--pmuted); }
+.p-media img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.p-media .yt { position: absolute; right: 6px; bottom: 6px; background: rgba(0, 0, 0, .55); }
+.p-cue { flex: none; margin: 6px 16px 0; font-size: 13px; line-height: 17px; text-align: center; color: var(--pmuted); }
+.p-next { flex: none; margin: 10px 16px 0; min-height: 48px; border-radius: 14px; background: var(--surf); display: flex; align-items: center; gap: 12px; padding: 0 14px; }
+.p-next .k { flex: none; font-size: 11px; font-weight: 800; letter-spacing: .1em; color: var(--pmuted); }
+.p-next b { flex: 1; min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-next span { flex: none; font-size: 13px; font-weight: 600; color: var(--pmuted); }
+.p-toggles { flex: none; margin: 10px 16px 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.tg { height: 54px; padding: 0 2px; border-radius: 12px; border: 1px solid var(--pline); background: transparent; color: var(--pmuted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 700; }
+.tg[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: #111318; }
+.p-ctl { flex: none; display: flex; align-items: center; justify-content: center; gap: 28px; padding: 12px 16px 18px; }
+.p-ctl button { width: 64px; height: 64px; border-radius: 32px; border: 0; background: var(--surf2); display: flex; align-items: center; justify-content: center; }
+.p-ctl button.main { width: 88px; height: 88px; border-radius: 44px; background: #f4f5f7; color: #111318; }
+.p-ctl button:disabled { opacity: .35; }
+.p-done { display: none; }
+.player.done .p-done { display: flex; } .player.done .p-live { display: none; }
+.p-done { flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px 16px; text-align: center; }
+.p-done h2 { margin: 0; font-size: 28px; font-weight: 800; }
+.p-done p { margin: 0; color: var(--muted); }
+.p-live { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<div class="app" id="view"></div>
+<div id="layer"></div>
+<script src="routines.js"></script>
+<script>
+(() => {
+const R = window.ROUTINES || [];
+const byId = Object.fromEntries(R.map(r => [r.id, r]));
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const fmt = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
+const mins = r => Math.round((r.dur || 0) / 60);
+const thumb = (r, f) => f ? `../data/thumbs/${r.id}/${f}` : '';
+// pictures for a step: our own video frame (local copy) or the public-domain catalogue photos (public site)
+const imgsOf = (r, s) => s && s.th ? [thumb(r, s.th)] : (s && s.img) || [];
+const ytAt = (r, s) => s && s.v != null ? `https://www.youtube.com/watch?v=${r.id}&t=${s.v}s` : r.url;
+const PUBLIC = R.some(r => r.steps.some(s => s.img));
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const TG0 = { role: 'Workout', goal: '', intensity: 0, focus: '', gear: [], quiet: false, similar: [] };
+const tg = r => r.tg || TG0;
+const timerTotal = r => r.steps.reduce((x, s) => x + (s.p || 0) + s.w, 0);
+
+/* ---------- icons (inline stroke SVG) ---------- */
+const P_ = {
+  dumbbell: '<path d="M6.5 6.5v11"/><path d="M17.5 6.5v11"/><path d="M3.5 9.5v5"/><path d="M20.5 9.5v5"/><path d="M6.5 12h11"/>',
+  flame: '<path d="M12 3c.6 3.2 4.8 5.2 4.8 10a4.8 4.8 0 0 1-9.6 0c0-2.2 1.1-3.7 2.3-4.8.2 1.6 1 2.6 2.1 2.9-.6-2.6.1-5.6.4-8.1z"/>',
+  bolt: '<path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/>',
+  bars: '<path d="M4 19V9"/><path d="M8 19v-5"/><path d="M12 19V9"/><path d="M16 19v-5"/><path d="M20 19V9"/>',
+  sunrise: '<path d="M17 18a5 5 0 0 0-10 0"/><path d="M12 3v6"/><path d="M9 6l3-3 3 3"/><path d="M4.2 10.2l1.4 1.4"/><path d="M18.4 11.6l1.4-1.4"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="M3 21h18"/>',
+  wind: '<path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/><path d="M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  sliders: '<path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="9" cy="17" r="2"/>',
+  kettle: '<path d="M8.5 10.2V8a3.5 3.5 0 0 1 7 0v2.2"/><circle cx="12" cy="15" r="6"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  feather: '<path d="M20.2 12.2a6 6 0 0 0-8.5-8.5L5 10.5V19h8.5z"/><path d="M16 8L2 22"/><path d="M17.5 15H9"/>',
+  down: '<path d="M6 9l6 6 6-6"/>',
+  sort: '<path d="M7 4v16"/><path d="M3 8l4-4 4 4"/><path d="M17 20V4"/><path d="M13 16l4 4 4-4"/>',
+  hidden: '<path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.4 2 12 2 12s4 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>',
+  x: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>',
+  play: '<path d="M8 5v14l11-7z" fill="currentColor"/>',
+  pause: '<rect x="6" y="4.5" width="4" height="15" rx="1.2" fill="currentColor" stroke="none"/><rect x="14" y="4.5" width="4" height="15" rx="1.2" fill="currentColor" stroke="none"/>',
+  prev: '<path d="M19 20L9 12l10-8v16z" fill="currentColor"/><path d="M5 19V5"/>',
+  next: '<path d="M5 4l10 8-10 8V4z" fill="currentColor"/><path d="M19 5v14"/>',
+  sound: '<path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>',
+  mute: '<path d="M11 5L6 9H3v6h3l5 4V5z"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/>',
+  voice: '<path d="M4 5h16v11H9l-5 4V5z"/><path d="M8 9.5h8"/><path d="M8 12.5h5"/>',
+  skip: '<path d="M4 6l7 6-7 6V6z"/><path d="M13 6l7 6-7 6V6z"/>',
+  vibrate: '<rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 8v8"/><path d="M20 8v8"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  stopwatch: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M10 2h4"/>',
+  restc: '<circle cx="12" cy="12" r="9"/><path d="M10 9v6"/><path d="M14 9v6"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+  person: '<circle cx="13" cy="4.5" r="2"/><path d="M12.5 7.5l-1.5 6"/><path d="M12 9.2l-4.2 2.3"/><path d="M12.3 8.8l4.4 1.4"/><path d="M11 13.5l-4 3.3v3.2"/><path d="M11 13.5l4.6 2.6-.6 3.9"/>',
+};
+const ic = (n, s = 20, w = 2) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${P_[n]}</svg>`;
+const YT = '<svg width="30" height="21" viewBox="0 0 30 21" aria-hidden="true" focusable="false"><rect width="30" height="21" rx="6" fill="#FF0000"/><path d="M12 6v9l8-4.5z" fill="#fff"/></svg>';
+const ytLink = (r, s) => `<a class="yt" href="${ytAt(r, s)}" target="_blank" rel="noopener" aria-label="Watch on YouTube">${YT}</a>`;
+
+/* ---------- class types and difficulty ---------- */
+const STRETCH = { bg: '#245582', fg: '#ffffff', label: 'STRETCH', icon: 'wind' };
+const TYPES = {
+  'Strength & toning': { bg: '#7a4bd8', fg: '#ffffff', label: 'STRENGTH', icon: 'dumbbell' },
+  'Fat-burn circuit': { bg: '#d454c6', fg: '#1c0619', label: 'BURN', icon: 'flame', long: 'FAT-BURN CIRCUIT' },
+  'HIIT': { bg: '#23743b', fg: '#ffffff', label: 'HIIT', icon: 'bolt' },
+  'Tabata': { bg: '#b5e03c', fg: '#10170a', label: 'TABATA', icon: 'bars' },
+  'Warm-up': { bg: '#f4a3c4', fg: '#2a0d1a', label: 'WARM-UP', icon: 'sunrise' },
+  'Mobility': STRETCH, 'Stretching': STRETCH,
+};
+const typeOf = r => TYPES[tg(r).goal] || { bg: '#3a404c', fg: '#eef0f3', label: 'CLASS', icon: 'dumbbell' };
+const DIFF = ['', '#a3e8c0', '#eaae3e', '#e8843a', '#dc5a34', '#c42a3c'];
+const DIFF_WORD = ['', 'Very easy', 'Easy', 'Moderate', 'Hard', 'Very hard'];
+const dots = (n, big) => n ? `<span class="dots${big ? ' big' : ''}" role="img" aria-label="Difficulty ${n} of 5">${[1, 2, 3, 4, 5].map(i =>
+  `<i${i <= n ? ` style="background:${DIFF[n]};box-shadow:none"` : ''}></i>`).join('')}</span>` : '';
+
+/* ---------- filters ---------- */
+const TABS = [['Workout', 'Workouts', 'dumbbell'], ['Warm-up', 'Warm-ups', 'sunrise'], ['Cool-down & mobility', 'Cool-down', 'wind']];
+const GEAR_GROUPS = [['Household', ['chair/box', 'towel', 'paper rolls', 'sliders']],
+                     ['Light gear', ['band', 'fitball', 'foam roller']],
+                     ['Weights', ['dumbbells', 'kettlebell', 'barbell']]];
+const GOALS = ['Any', 'Strength & toning', 'Fat-burn circuit', 'HIIT', 'Tabata'];
+const FITS = { Any: 1e9, '≤10′': 10.5, '≤20′': 20.5, '≤30′': 30.5, '≤40′': 40.5 };
+const INTEN = { Any: [0, 5], 'Easy 1–2': [1, 2], 'Moderate 3': [3, 3], 'Hard 4–5': [4, 5] };
+const FOCUS = { Any: null, Core: ['Core'], 'Legs & glutes': ['Legs', 'Glutes'] };
+const DEF = { goal: 'Any', fits: 'Any', quiet: false, inten: 'Any', focus: 'Any' };
+const state = {
+  tab: store.get('f_tab', 'Workout'), q: '', sort: store.get('f_sort', 'len'),
+  goal: store.get('f_goal', 'Any'), fits: store.get('f_fits', 'Any'), quiet: store.get('f_quiet', false),
+  inten: store.get('f_inten', 'Any'), focus: store.get('f_focus', 'Any'),
+  gear: new Set(store.get('f_gear', ['chair/box', 'towel', 'paper rolls', 'sliders'])),
+};
+if (!TABS.some(t => t[0] === state.tab)) state.tab = 'Workout';
+if (!(state.fits in FITS)) state.fits = 'Any'; if (!GOALS.includes(state.goal)) state.goal = 'Any';
+if (!(state.inten in INTEN)) state.inten = 'Any'; if (!(state.focus in FOCUS)) state.focus = 'Any';
+const setF = (k, v) => { state[k] = v; store.set('f_' + k, v); };
+
+const hasGear = r => tg(r).gear.every(g => state.gear.has(g));
+function baseMatch(r) {                      // everything except the gear limit
+  const t = tg(r);
+  if (state.q) {
+    const hay = (r.name + ' ' + r.pl + ' ' + t.goal + ' ' + r.steps.map(s => s.n || '').join(' ')).toLowerCase();
+    return state.q.toLowerCase().split(/\s+/).every(w => hay.includes(w));
+  }
+  if (t.role !== state.tab) return false;
+  if (mins(r) > FITS[state.fits]) return false;
+  if (state.quiet && !t.quiet) return false;
+  if (state.tab === 'Workout') {
+    if (state.goal !== 'Any' && t.goal !== state.goal) return false;
+    const [a, b] = INTEN[state.inten]; if (state.inten !== 'Any' && !(t.intensity >= a && t.intensity <= b)) return false;
+    const f = FOCUS[state.focus]; if (f && !f.includes(t.focus)) return false;
+  }
+  return true;
+}
+function results() {
+  const base = R.filter(baseMatch), list = base.filter(hasGear);
+  list.sort(state.sort === 'az' ? (a, b) => a.name.localeCompare(b.name, 'es') : (a, b) => a.dur - b.dur);
+  return { list, hidden: base.length - list.length };
+}
+const activeFilters = () => (state.fits !== 'Any') + state.quiet +
+  (state.tab === 'Workout' ? (state.goal !== 'Any') + (state.inten !== 'Any') + (state.focus !== 'Any') : 0);
+
+/* ---------- library ---------- */
+function rowHTML(r) {
+  const t = tg(r), ty = typeOf(r);
+  const badges = (t.quiet ? `<span class="tag">${ic('feather', 12, 2.2)}Quiet</span>` : '') +
+    t.gear.map(g => `<span class="tag">${ic('kettle', 12, 2.2)}${esc(g)}</span>`).join('') + (r.na ? '<span class="tag">unavailable</span>' : '');
+  return `<li><a class="row" href="#/r/${r.id}">
+    <span class="tile" aria-hidden="true" style="background:${ty.bg};color:${ty.fg}">${ic(ty.icon, 24, 2.4)}<span>${ty.label}</span></span>
+    <span class="rbody"><span class="rtop"><span class="rname">${esc(r.name)}</span>${dots(t.intensity)}</span>
+    <span class="rmeta"><span>${mins(r)} min · ${esc(t.goal || r.pl)}</span>${badges}</span></span></a></li>`;
+}
+let libShellTab = null;
+function library() {
+  const tabName = (TABS.find(t => t[0] === state.tab) || TABS[0])[1];
+  if (libShellTab !== state.tab || !$('#libhead')) {
+    libShellTab = state.tab;
+    $('#view').innerHTML = `<header class="lib-head" id="libhead">
+      <div class="titlerow"><h1>${tabName}</h1><span id="count"></span></div>
+      <div class="search">${ic('search', 18)}<input id="q" type="search" aria-label="Search classes or exercises" placeholder="Search classes or exercises" autocomplete="off"></div>
+      <div class="chiprow" role="group" aria-label="Limits and filters" id="chips"></div>
+      <div class="subrow"><button type="button" id="sort"></button><a href="#/filters/gear" id="hiddenlink" hidden></a></div>
+    </header><ul class="list" id="list" aria-label="Classes"></ul>
+    <p class="credit">Routines transcribed from the free <a href="https://www.youtube.com/channel/UCjYhS8nd7ETpwRrY69QudMg" target="_blank" rel="noopener">Trainingym</a> YouTube classes (not affiliated); the YouTube button opens the original video at that exercise.${PUBLIC ? ' Exercise photos: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener">free-exercise-db</a> (public domain), shown only where the movement matches.' : ''}</p>`;
+    const q = $('#q'); q.value = state.q;
+    let qt; q.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => { state.q = q.value.trim(); refresh(); }, 120); });
+    $('#sort').onclick = () => { setF('sort', state.sort === 'len' ? 'az' : 'len'); refresh(); };
+  }
+  refresh();
+  tabbar(true);
+}
+function refresh() {
+  const { list, hidden } = results(), n = activeFilters();
+  $('#count').textContent = `${list.length} ${list.length === 1 ? 'class' : 'classes'}`;
+  $('#chips').innerHTML = `
+    <button type="button" class="pill strong" onclick="location.hash='#/filters'" aria-label="Filters${n ? `, ${n} active` : ''}">${ic('sliders', 18)}<span>Filters</span>${n ? `<span class="badge" aria-hidden="true">${n}</span>` : ''}</button>
+    <button type="button" class="pill sel" onclick="location.hash='#/filters/gear'">${ic('kettle', 18)}<span>My gear · ${state.gear.size}</span>${ic('down', 16)}</button>
+    <button type="button" class="pill${state.fits !== 'Any' ? ' sel' : ''}" onclick="location.hash='#/filters'">${ic('clock', 18)}<span>${state.fits === 'Any' ? 'Any length' : 'Fits in ' + state.fits}</span>${ic('down', 16)}</button>
+    <button type="button" class="pill${state.quiet ? ' sel' : ''}" id="quietpill" aria-pressed="${state.quiet}">${ic('feather', 18)}<span>Quiet</span></button>`;
+  $('#quietpill').onclick = () => { setF('quiet', !state.quiet); refresh(); };
+  $('#sort').innerHTML = `${ic('sort', 16)}<span>${state.sort === 'az' ? 'A–Z' : 'Shortest first'}</span>`;
+  $('#sort').setAttribute('aria-label', 'Sort: ' + (state.sort === 'az' ? 'A to Z' : 'shortest first') + '. Tap to change');
+  const hl = $('#hiddenlink'); hl.hidden = !hidden; hl.innerHTML = `${ic('hidden', 16)}<span>${hidden} hidden — change gear</span>`;
+  $('#list').innerHTML = list.length ? list.map(rowHTML).join('') :
+    `<li class="empty">${state.q ? 'No class matches that search.' : 'No class fits these filters. Try a longer time, or turn off Quiet.'}</li>`;
+}
+function tabbar(on) {
+  let el = $('#tabbar');
+  if (!on) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('nav'); el.className = 'tabbar'; el.id = 'tabbar'; el.setAttribute('aria-label', 'Sections'); document.body.appendChild(el); }
+  el.innerHTML = `<div class="in">${TABS.map(([k, l, i]) => `<button type="button" data-tab="${esc(k)}"${!state.q && state.tab === k ? ' aria-current="page"' : ''}><span>${ic(i, 22)}</span>${l}</button>`).join('')}</div>`;
+  el.querySelectorAll('button').forEach(b => b.onclick = () => {
+    setF('tab', b.dataset.tab); state.q = ''; window.scrollTo(0, 0);
+    if (location.hash.length > 2) location.hash = '#/'; else library();
+  });
+}
+
+/* ---------- filters sheet ---------- */
+function sheet(focusGear) {
+  const W = state.tab === 'Workout' && !state.q;
+  const opt = (k, v, inner, extra = '') => `<button type="button" class="opt${extra}" data-k="${k}" data-v="${esc(v)}" aria-pressed="${state[k] === v}">${inner || esc(v)}</button>`;
+  const diffSw = { 'Easy 1–2': [1, 2], 'Moderate 3': [3], 'Hard 4–5': [4, 5] };
+  $('#layer').innerHTML = `<div class="backdrop" id="bd"></div>
+    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="fs-t">
+      <div class="grab" aria-hidden="true"><i></i></div>
+      <div class="sheet-head"><h2 id="fs-t">Filters</h2><button type="button" class="iconbtn" id="fs-x" aria-label="Close filters">${ic('x', 22, 2.2)}</button></div>
+      <div class="sheet-body" id="fs-body">
+        <div><p class="fs-label">Fits in</p><div class="seg" style="grid-template-columns:repeat(5,minmax(0,1fr))">${Object.keys(FITS).map(v => opt('fits', v)).join('')}</div></div>
+        <button type="button" class="switchrow" role="switch" id="fs-quiet" aria-checked="${state.quiet}"><span class="txt"><b>Quiet</b><span>No jumping</span></span><span class="switch" aria-hidden="true"></span></button>
+        ${W ? `<div><p class="fs-label">Goal</p><div class="wrap">${GOALS.map(v => opt('goal', v, v === 'Any' ? 'Any' : `<span class="sw" style="background:${TYPES[v].bg}"></span>${esc(v)}`)).join('')}</div></div>
+        <div><p class="fs-label">Difficulty</p><div class="seg" style="grid-template-columns:repeat(4,minmax(0,1fr))">${Object.keys(INTEN).map(v => opt('inten', v,
+          v === 'Any' ? 'Any' : `<span style="display:flex;gap:3px">${diffSw[v].map(n => `<i style="width:7px;height:7px;border-radius:4px;background:${DIFF[n]}"></i>`).join('')}</span>${esc(v)}`, v === 'Any' ? '' : ' stack')).join('')}</div></div>
+        <div><p class="fs-label">Focus</p><div class="seg" style="grid-template-columns:repeat(3,minmax(0,1fr))">${Object.keys(FOCUS).map(v => opt('focus', v)).join('')}</div></div>` : ''}
+        <div id="fs-gear"><p class="fs-label">My gear <span style="font-size:13px;font-weight:500;color:var(--muted)">· remembered; classes needing other gear are hidden</span></p>
+          <div class="gear">${GEAR_GROUPS.map(([g, items]) => `<div role="group" aria-label="${g}"><h3>${g}</h3>${items.map(i =>
+            `<label><input type="checkbox" data-gear="${esc(i)}"${state.gear.has(i) ? ' checked' : ''}>${esc(i)}</label>`).join('')}</div>`).join('')}</div>
+          <p style="margin:6px 0 0;font-size:12px;color:var(--faint)">A mat is assumed everywhere. "chair/box" = a sturdy chair or knee-high step.</p></div>
+      </div>
+      <div class="sheet-foot"><button type="button" class="btn" id="fs-reset">Reset</button><button type="button" class="btn primary" id="fs-go"></button></div>
+    </section>`;
+  const upd = () => {
+    const n = results().list.length; $('#fs-go').textContent = `Show ${n} ${n === 1 ? 'class' : 'classes'}`;
+    $('#layer').querySelectorAll('.opt').forEach(b => b.setAttribute('aria-pressed', String(state[b.dataset.k] === b.dataset.v)));
+    $('#fs-quiet').setAttribute('aria-checked', String(state.quiet));
+  };
+  const close = () => { if (history.length > 1 && sheetPushed) history.back(); else location.hash = '#/'; };
+  $('#layer').querySelectorAll('.opt').forEach(b => b.onclick = () => { setF(b.dataset.k, b.dataset.v); upd(); });
+  $('#fs-quiet').onclick = () => { setF('quiet', !state.quiet); upd(); };
+  $('#layer').querySelectorAll('[data-gear]').forEach(c => c.onchange = () => {
+    c.checked ? state.gear.add(c.dataset.gear) : state.gear.delete(c.dataset.gear); store.set('f_gear', [...state.gear]); upd(); });
+  $('#fs-reset').onclick = () => { Object.entries(DEF).forEach(([k, v]) => setF(k, v)); upd(); };
+  $('#fs-go').onclick = close; $('#fs-x').onclick = close; $('#bd').onclick = close;
+  upd();
+  if (focusGear) $('#fs-gear').scrollIntoView({ block: 'start' });
+}
+let sheetPushed = false;
+
+/* ---------- class page ---------- */
+function detail(id) {
+  const r = byId[id]; if (!r) { location.hash = '#/'; return; }
+  const t = tg(r), ty = typeOf(r), ex = r.steps.filter(s => s.k === 'ex');
+  const works = {}, preps = {}, rests = new Set();
+  r.steps.forEach(s => { if (s.k === 'rest') rests.add(s.w); else { if (!s.r) works[s.w] = (works[s.w] || 0) + 1; preps[s.p] = (preps[s.p] || 0) + 1; } });
+  const top = o => Object.entries(o).sort((a, b) => b[1] - a[1]).map(e => e[0])[0];
+  const follow = r.src && !/OCR/.test(r.src);
+  const meta2 = follow ? `Follow-along${r.eq ? ` · equipment: <b>${esc(r.eq)}</b>` : ''}` :
+    [top(works) && `Work <b>${top(works)}s</b>`, top(preps) > 0 && `Transition <b>${top(preps)}s</b>`,
+     rests.size && `Rests <b>${[...rests].sort((a, b) => a - b).map(x => x + 's').join(', ')}</b>`].filter(Boolean).join(' · ');
+  const sim = [r, ...(t.similar || []).map(i => byId[i]).filter(Boolean)].sort((a, b) => a.dur - b.dur);
+  let lastRound = null, body = '', rowsOpen = false;
+  const open = () => { if (!rowsOpen) { body += '<ol class="steps">'; rowsOpen = true; } };
+  const shut = () => { if (rowsOpen) { body += '</ol>'; rowsOpen = false; } };
+  r.steps.forEach((s, i) => {
+    if (s.k === 'ex' && s.rd != null && s.rd !== lastRound) { shut(); lastRound = s.rd; body += `<h3 class="grp">Round ${s.rd}</h3>`; }
+    open();
+    if (s.k === 'rest') { body += `<li class="restrow">${ic('restc', 18)}<span>Rest ${s.w}s</span></li>`; return; }
+    const pic = imgsOf(r, s)[0];
+    body += `<li class="ex"><span class="ph" aria-hidden="true">${pic ? `<img loading="lazy" src="${pic}" alt="">` : ic('person', 20, 1.6)}</span>
+      <span class="nm"><b>${esc(s.n)}${s.sd ? ` <span style="display:inline;color:var(--muted);font-weight:400">(${esc(s.sd)})</span>` : ''}</b>${s.c ? `<span>${esc(s.c)}</span>` : ''}</span>
+      <span class="amt">${s.r ? '×' + s.r : s.w + 's'}</span>${ytLink(r, s)}</li>`;
+  });
+  shut();
+  $('#view').innerHTML = `<div class="cpage">
+    <div class="band" style="background:${ty.bg};color:${ty.fg}"><a class="back" href="#/" id="backbtn" aria-label="Back to the list">${ic('back', 22, 2.4)}</a>
+      ${ic(ty.icon, 22, 2.4)}<span>${ty.long || ty.label}</span></div>
+    <section class="chead"><div class="eyebrow">${esc(r.pl)}</div><h1>${esc(r.name)}</h1>
+      <div class="chips">${t.intensity ? `<span class="chip">${dots(t.intensity, true)}<b style="font-size:12px">${DIFF_WORD[t.intensity]}</b></span>` : ''}
+        ${t.focus ? `<span class="chip">${esc(t.focus)}</span>` : ''}${t.quiet ? `<span class="chip">${ic('feather', 14)}Quiet</span>` : ''}
+        ${t.gear.map(g => `<span class="chip">${ic('kettle', 14)}${esc(g)}</span>`).join('')}</div>
+      <p class="cmeta">Video <b>${fmt(r.dur)}</b>${ex.length ? ` · Timer <b>${fmt(timerTotal(r))}</b> · <b>${ex.length}</b> steps` : ''}${meta2 ? '<br>' + meta2 : ''}</p>
+      ${r.notes ? `<p class="notes">${esc(r.notes)}</p>` : ''}</section>
+    ${sim.length > 1 ? `<section class="lengths" aria-label="Other lengths and similar classes"><span class="lab">Other<br>lengths</span>${sim.map(o => o === r ?
+      `<span class="cur" aria-current="true"><b>${mins(o)} min</b>This class</span>` :
+      `<a href="#/r/${o.id}"><b>${mins(o)} min</b><span>${esc(o.name)}</span></a>`).join('')}</section>` : ''}
+    <section aria-labelledby="routine-h"><div class="routine-h"><h2 id="routine-h">Routine</h2>
+      <a class="yt" href="${r.url}" target="_blank" rel="noopener" aria-label="Watch the full class on YouTube">${YT}</a></div>
+      ${ex.length ? body : `<p class="empty">Not extracted${r.na ? ': ' + esc(r.na) : ' yet'}.</p>`}</section>
+  </div>
+  ${ex.length ? `<div class="startbar"><div class="in"><a class="btn primary" href="#/play/${r.id}">${ic('play', 18)}Start timer<span class="sub">· ${fmt(timerTotal(r))}</span></a></div></div>` : ''}`;
+  $('#backbtn').onclick = e => { if (history.length > 1 && cameFromList) { e.preventDefault(); history.back(); } };
+  tabbar(false); window.scrollTo(0, 0);
+}
+let cameFromList = false;
+
+/* ---------- player ---------- */
+let P = null;
+const opts = { sound: store.get('o_sound', true), voice: store.get('o_voice', true), skipNext: store.get('o_skip', false),
+               vibrate: store.get('o_vib', true), mix: store.get('o_mix', true) };
+
+/* ---------- cue track ----------
+   Two playback backends, same cue schedule and the same approved sounds:
+   - "web" (default, opts.mix): every cue is scheduled on the Web Audio clock (plus a silent loop that keeps the
+     context running). It mixes with other apps' music (Spotify keeps playing) and, as tested on the Pixel 4a,
+     keeps beeping with the screen locked.
+   - "media" (opts.mix off): the run is pre-rendered into ONE WAV (8-bit unsigned mono at 8 kHz, about 8 KB/s,
+     silence = 128) played by an <audio> element. It takes audio focus (pauses other music) and gets the
+     notification / lock-screen media controls.
+   Either way the backend's clock is the master clock: the UI only derives phase + seconds from it. */
+// each voice: [freq Hz, offset s, duration s, wave, peak, release s]
+const CUES = {
+  start:     [[880, 0, .12, 'triangle', .9, .08], [1109, .1, .12, 'triangle', .9, .08], [1319, .2, .28, 'triangle', .9, .2]],
+  'tick-lo': [[784, 0, .12, 'triangle', 1, .04]],                       // last 3 s of get-ready / rest
+  'tick-hi': [[1568, 0, .1, 'sine', .9, .03]],                          // last 3 s of work
+  go:        [[1175, 0, .45, 'triangle', 1, .12]],                      // work starts
+  end:       [[440, 0, .11, 'triangle', .85, .04], [880, 0, .11, 'sine', .4, .04],    // work ends (low double;
+              [440, .17, .11, 'triangle', .85, .04], [880, .17, .11, 'sine', .4, .04]], // octave helps phone speakers)
+  fanfare:   [[784, 0, .12, 'triangle', .9, .05], [1047, .13, .12, 'triangle', .9, .05], [1319, .26, .12, 'triangle', .9, .05],
+              [1568, .39, .55, 'triangle', .6, .3], [784, .39, .55, 'sine', .35, .3]],
+};
+CUES.class = CUES.start;                                                // new class in a multi-class session
+const BUZZ = { start: [50, 50, 50, 50, 50], 'tick-lo': 40, 'tick-hi': 40, go: 350, end: [80, 80, 80], fanfare: [80, 60, 80, 60, 400] };
+BUZZ.class = BUZZ.start;                                                // vibration patterns (ms), page visible only
+const cueLen = n => Math.max(...CUES[n].map(v => v[1] + v[2])) + .04;  // offset for a cue chained after it
+const RATE = 8000, MASTER = 0.55, ATK = .005;
+const SKIP_END = cueLen('end') - .02;   // ⏮/⏭ onto a phase that follows work lands just past the END double beep
+const DEBUG_SOUND = location.href.includes('debug=sound');             // test hook: window.__cues / __track / __player
+if (DEBUG_SOUND) Object.assign(window, { __cues: [], __voice: [], __buzz: [] });
+let media = null, actx = null, voiceOK = false;
+
+function timeline() {                   // phase start times, workout length and the cue schedule (absolute seconds)
+  let t = 0; P.starts = P.ph.map(p => (t += p.dur) - p.dur); P.total = t; P.dur = t + cueLen('fanfare') + .3;
+  const L = [[0, 'start', 0]];
+  P.ph.forEach((p, k) => {
+    const b = P.starts[k] + p.dur;
+    for (const n of [3, 2, 1]) if (n < p.dur) L.push([b - n, p.type === 'work' ? 'tick-hi' : 'tick-lo', k, n]);  // none on a phase start
+    if (k === P.ph.length - 1) { L.push([b, 'fanfare', k]); return; }
+    let d = 0; if (p.type === 'work') { L.push([b, 'end', k]); d = cueLen('end'); }
+    const q = P.ph[k + 1]; if (q.newClass) L.push([b + d, 'class', k + 1]); else if (q.type === 'work') L.push([b + d, 'go', k + 1]);
+  });
+  P.cues = L.sort((a, b) => a[0] - b[0]);
+  if (DEBUG_SOUND) window.__cues = P.cues.map(([t, cue, phase, n]) => Object.assign({ t: Math.round(t * 1000), cue, phase }, n ? { n } : {}));
+}
+function synth(voices) {                // one cue, band-limited (triangle = odd harmonics < 3.8 kHz), 5 ms attack, smooth release
+  const buf = new Float32Array(Math.ceil(Math.max(...voices.map(v => v[1] + v[2])) * RATE));
+  for (const [f, dt, dur, wave, peak, rel] of voices) {
+    const j0 = Math.round(dt * RATE), m = Math.round(dur * RATE), w = 2 * Math.PI * f / RATE, hold = Math.max(ATK, dur - rel);
+    const hs = wave === 'triangle' ? [1, 3, 5, 7, 9].filter(h => h * f < 3800).map(h => [h, (h % 4 === 1 ? 8 : -8) / (Math.PI * Math.PI * h * h)]) : [[1, 1]];
+    for (let j = 0; j < m && j0 + j < buf.length; j++) {
+      const t = j / RATE, env = t < ATK ? peak * t / ATK : t < hold ? peak : peak * Math.pow(.0005 / peak, (t - hold) / (dur - hold));
+      let x = 0; for (const [h, a] of hs) x += a * Math.sin(w * h * j);
+      buf[j0 + j] += x * env * MASTER * 127;
+    }
+  }
+  return buf;
+}
+function renderTrack() {                // media mode: the whole run as WAV bytes (a 50-min session is about 24 MB)
+  const n = Math.ceil(P.dur * RATE / 2) * 2, u8 = new Uint8Array(44 + n), v = new DataView(u8.buffer);
+  [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']].forEach(([o, s]) => { for (let i = 0; i < 4; i++) u8[o + i] = s.charCodeAt(i); });
+  v.setUint32(4, 36 + n, true); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, RATE, true); v.setUint32(28, RATE, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); v.setUint32(40, n, true);
+  u8.fill(128, 44);
+  if (opts.sound) {
+    const bank = {};
+    P.cues.forEach(([t, name]) => {
+      const b = bank[name] || (bank[name] = synth(CUES[name])), i0 = 44 + Math.round(t * RATE);
+      for (let j = 0; j < b.length && i0 + j < u8.length; j++) { const y = u8[i0 + j] + Math.round(b[j]); u8[i0 + j] = y < 0 ? 0 : y > 255 ? 255 : y; }
+    });
+  }
+  return u8;
+}
+
+/* web backend: cues scheduled on the AudioContext clock (they play on the audio thread, even when JS is throttled) */
+function audioCtx() {
+  if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; actx = new AC(); }
+  if (actx.state !== 'running') { const pr = actx.resume(); if (pr && pr.catch) pr.catch(() => {}); }
+  return actx;
+}
+let bank = null;
+function cueBank(c) {                   // the approved sounds as AudioBuffers (same synthesis as the WAV track)
+  if (bank) return bank; bank = {};
+  for (const name of Object.keys(CUES)) {
+    const b = synth(CUES[name]), ab = c.createBuffer(1, b.length, RATE), ch = ab.getChannelData(0);
+    for (let i = 0; i < b.length; i++) ch[i] = b[i] / 128;
+    bank[name] = ab;
+  }
+  return bank;
+}
+function webStop() {                    // stop every scheduled node; remember the position
+  if (!P.web) return;
+  P.offset = clock(); const nodes = P.web.nodes; P.web = null;
+  nodes.forEach(n => { try { n.onended = null; n.stop(); } catch {} });
+}
+function webStart() {
+  const c = audioCtx(), B = cueBank(c), off = Math.min(P.offset, P.dur), t0 = c.currentTime + .05, nodes = [];
+  const sil = c.createBufferSource(); sil.buffer = c.createBuffer(1, RATE, RATE); sil.loop = true;   // keep-alive: continuous (silent) output
+  sil.connect(c.destination); sil.start(t0); nodes.push(sil);
+  if (opts.sound) for (const [t, name] of P.cues) {
+    if (t < off - .01) continue;
+    const n = c.createBufferSource(); n.buffer = B[name]; n.connect(c.destination); n.start(t0 + (t - off)); nodes.push(n);
+  }
+  const end = c.createBufferSource(); end.buffer = c.createBuffer(1, 1, RATE); end.connect(c.destination);
+  const web = { nodes, t0, off }; nodes.push(end);
+  end.onended = () => { if (P && P.web === web) { webStop(); P.offset = P.dur; onMedia('ended'); } };
+  end.start(t0 + Math.max(0, P.dur - off));
+  P.web = web; P.offset = off;
+}
+
+function loadTrack(pos) {               // (re)prepare the backend chosen by opts.mix at pos (caller plays)
+  if (P.web) webStop();                 // stop the web backend while P.mode still says 'web' (its clock is read)
+  P.mode = opts.mix ? 'web' : 'media';
+  if (P.mode === 'web') {
+    if (media) try { media.pause(); media.removeAttribute('src'); media.load(); } catch {}
+    if (P.url && P.url.startsWith('blob:')) URL.revokeObjectURL(P.url);
+    audioCtx(); P.url = 'web'; P.offset = pos; P.seekPending = null;
+    return;
+  }
+  if (!media) {
+    media = new Audio(); media.preload = 'auto'; media.setAttribute('playsinline', '');
+    ['play', 'pause', 'seeked', 'ended'].forEach(e => media.addEventListener(e, () => { if (P && P.mode === 'media') onMedia(e); }));
+    media.addEventListener('loadedmetadata', () => {
+      if (P && P.seekPending != null) { try { media.currentTime = P.seekPending; } catch {} P.seekPending = null; } });
+  }
+  const u8 = renderTrack(), old = P.url;
+  P.url = URL.createObjectURL(new Blob([u8], { type: 'audio/wav' }));
+  if (DEBUG_SOUND) window.__track = { rate: RATE, bytes: u8.length, data: u8 };
+  media.src = P.url; if (old && old.startsWith('blob:')) URL.revokeObjectURL(old);
+  P.seekPending = pos; try { media.currentTime = pos; } catch {}
+}
+function clock() {
+  if (P.seekPending != null) return P.seekPending;
+  if (!P.url) return P.pos;
+  if (P.mode === 'web') return P.web ? Math.min(P.dur, P.web.off + Math.max(0, actx.currentTime - P.web.t0)) : P.offset;
+  return media.currentTime;
+}
+const isPlaying = () => P.mode === 'web' ? !!P.web : !!media && !media.paused && !media.ended;
+function phaseAt(t) { let k = 0; while (k + 1 < P.ph.length && P.starts[k + 1] <= t + 1e-3) k++; return k; }
+const target = j => P.starts[j] + (j > 0 && P.ph[j - 1].type === 'work' ? SKIP_END : 0);
+function seek(t) {                      // ⏮/⏭ and the notification seek bar; the UI follows the backend clock
+  t = Math.max(0, Math.min(t, P.total)); unbuzz(true);
+  if (!P.url) { P.pos = t; return; }
+  if (P.mode === 'web') { const on = !!P.web; if (on) webStop(); P.offset = t; if (on) webStart(); return; }
+  if (!media.readyState) P.seekPending = t;
+  try { media.currentTime = t; } catch {}
+}
+function playTrack() {
+  if (P.mode === 'web') { if (!P.web) webStart(); onMedia('play'); return; }
+  const pr = media.play(); if (pr && pr.catch) pr.catch(() => onMedia('pause'));
+}
+function pauseTrack() { if (P.mode === 'web') { webStop(); onMedia('pause'); } else media.pause(); }
+function buzz(t) {                      // haptics for cues while the page is visible, scheduled <=150 ms ahead off the clock
+  if (!opts.vibrate || !navigator.vibrate || document.visibilityState !== 'visible') return;
+  P.cues.forEach((c, i) => {
+    const dt = c[0] - t;
+    if (dt > .15 || dt < -.2 || P.buzzed.has(i)) return;
+    P.buzzed.add(i);
+    P.buzzT.set(i, setTimeout(() => {
+      if (!P || !P.running || document.visibilityState !== 'visible') return;
+      P.buzzT.delete(i); try { navigator.vibrate(BUZZ[c[1]]); } catch {}
+      if (DEBUG_SOUND) window.__buzz.push({ t: Math.round(clock() * 1000), cue: c[1], phase: c[2] });
+    }, Math.max(0, dt * 1000)));
+  });
+}
+function unbuzz(all) {                  // drop pending buzzes (pause); after a seek also forget which cues already buzzed
+  P.buzzT.forEach((id, i) => { clearTimeout(id); P.buzzed.delete(i); }); P.buzzT.clear();
+  if (all) P.buzzed.clear();
+}
+function say(t) {                       // voice: foreground only, and it never touches the track
+  if (!opts.voice || !('speechSynthesis' in window) || document.visibilityState !== 'visible') return;
+  if (DEBUG_SOUND) window.__voice.push({ t: Math.round(clock() * 1000), text: t });
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = 1.05;
+    u.onstart = () => { voiceOK = true; }; speechSynthesis.speak(u); } catch {}
+}
+function lockScreen(on) {               // screen Wake Lock while running and visible (Chrome drops it whenever the page is hidden)
+  if (!on) { try { P.lock && P.lock.release(); } catch {} P.lock = null; return; }
+  if ((P.lock && !P.lock.released) || P.locking || !('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+  const p = P; p.locking = true;
+  navigator.wakeLock.request('screen').then(l => { if (P === p && p.running) p.lock = l; else l.release(); })
+    .catch(() => {}).then(() => { p.locking = false; });
+}
+const msActions = {                     // notification / lock-screen media controls (media mode)
+  play: () => setPlaying(true), pause: () => setPlaying(false),
+  previoustrack: () => jump(-1), nexttrack: () => jump(1),
+  seekto: e => { if (P && e && isFinite(e.seekTime)) { seek(e.seekTime); frame(); msUpdate(); } },
+};
+if (DEBUG_SOUND) Object.assign(window, { __ms: msActions, __media: () => media, __player: () => P && { t: clock(), k: P.k, done: P.done,
+  running: P.running, starts: P.starts, total: P.total, dur: P.dur, mode: P.mode, paused: P.url ? !isPlaying() : null,
+  nodes: P.web ? P.web.nodes.length : 0, cues: P.cues.length, ctx: actx && actx.state } });
+function msSetup(on) {
+  if (!('mediaSession' in navigator)) return;
+  for (const a in msActions) try { navigator.mediaSession.setActionHandler(a, on ? msActions[a] : null); } catch {}
+  if (!on) try { navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none'; } catch {}
+}
+function msUpdate() {                   // best effort: runs whenever JS runs (it is throttled with the screen off)
+  if (!P || !('mediaSession' in navigator) || P.mode === 'web') return;
+  const ms = navigator.mediaSession, p = P.ph[P.k], s = p.step;
+  try {
+    const title = P.done ? 'Workout complete' : p.newClass ? 'Next class: ' + s.n : p.type === 'prep' ? 'Get ready: ' + s.n : p.type === 'rest' ? 'Rest' : s.n;
+    if (P.msKey !== title + '|' + p.r.name) { P.msKey = title + '|' + p.r.name;
+      ms.metadata = new MediaMetadata({ title, artist: p.r.name || 'Workout Timer', album: P.list.length > 1 ? P.list.map(r => r.name).join(' + ') : 'Workout Timer' }); }
+    ms.playbackState = P.running ? 'playing' : 'paused';
+    if (P.url && ms.setPositionState) ms.setPositionState({ duration: P.dur, playbackRate: 1, position: Math.min(P.dur, Math.max(0, clock())) });
+  } catch {}
+}
+function phasesOf(r, ci) {
+  const out = [];
+  r.steps.forEach((s, i) => {
+    if (s.k === 'rest') { out.push({ type: 'rest', dur: s.w, step: s, i, r, ci }); return; }
+    if (s.p > 0 && !opts.skipNext) out.push({ type: 'prep', dur: s.p, step: s, i, r, ci });
+    out.push({ type: 'work', dur: s.w, step: s, i, r, ci });
+  });
+  if (out.length && out[0].type === 'work') out.unshift({ type: 'prep', dur: 10, step: out[0].step, i: out[0].i, r, ci });
+  if (ci > 0 && out.length) out[0] = { ...out[0], dur: Math.max(out[0].dur, 20), newClass: true };   // breather between classes
+  return out;
+}
+const phasesFor = list => list.flatMap((r, ci) => phasesOf(r, ci));
+const TOGGLES = [['sound', 'Sound', 'o_sound'], ['voice', 'Voice', 'o_voice'], ['mix', 'Mix music', 'o_mix'],
+                 ['vibrate', 'Vibrate', 'o_vib'], ['skipNext', 'Skip next', 'o_skip']];
+
+function play(ids) {
+  const list = ids.map(id => byId[id]).filter(r => r && r.steps.length);
+  if (!list.length) { location.hash = '#/'; return; }
+  stopPlayer();
+  P = { list, ph: phasesFor(list), k: 0, left: 0, running: false, timer: null, lock: null, mode: opts.mix ? 'web' : 'media',
+        pos: 0, offset: 0, url: null, web: null, seekPending: null, buzzed: new Set(), buzzT: new Map() };
+  timeline(); P.left = P.ph[0].dur;
+  const el = document.createElement('div'); el.className = 'player'; el.id = 'player';
+  el.innerHTML = `<div class="flash" id="flash"></div><div class="p-in">
+    <header class="p-head"><button type="button" class="x" id="bx" aria-label="End workout">${ic('x', 22, 2.2)}</button>
+      <div class="p-title"><b id="pcls"></b><span id="psub"></span></div><div class="p-left"><b id="pt"></b><span>left</span></div></header>
+    <div class="p-prog" role="progressbar" aria-label="Workout progress"><i id="pbar"></i></div>
+    <div class="p-live">
+      <div class="p-banner" role="status"><span class="lbl" id="plbl"></span><span class="dur" id="pdur"></span></div>
+      <div class="ring"><svg width="210" height="210" viewBox="0 0 224 224" aria-hidden="true">
+        <circle cx="112" cy="112" r="102" fill="none" style="stroke:var(--track)" stroke-width="16"/>
+        <circle id="parc" cx="112" cy="112" r="102" fill="none" style="stroke:var(--ph)" stroke-width="16" stroke-linecap="round" stroke-dasharray="641 641" transform="rotate(-90 112 112)"/></svg>
+        <div class="num" role="timer" id="ptimer"><span class="clock" id="pclock"></span><span class="pips" id="ppips"><i></i><i></i><i></i></span><span class="of" id="pof"></span></div></div>
+      <div class="p-up" id="pup">UP NEXT</div>
+      <h1 class="p-name" id="pname"></h1><div class="p-sub" id="pside"></div>
+      <div class="p-media" id="pmedia"><img id="pimg" alt=""><span id="pnoimg">${ic('person', 40, 1.5)}</span><a class="yt" id="pyt" target="_blank" rel="noopener" aria-label="Watch this exercise on YouTube">${YT}</a></div>
+      <div class="p-cue" id="pcue"></div>
+      <div class="p-next" id="pnext"><span class="k">NEXT</span><b id="pnn"></b><span id="pnd"></span></div>
+    </div>
+    <div class="p-done"><div style="width:72px;height:72px;border-radius:36px;background:var(--accent);color:var(--on-accent);display:flex;align-items:center;justify-content:center">${ic('check', 36, 3)}</div>
+      <h2>Workout complete</h2><p id="pdonetxt"></p><button type="button" class="btn primary" style="flex:none;width:100%;max-width:320px" id="bdone">Back to the class</button></div>
+    <div class="p-toggles" role="group" aria-label="Cues">${TOGGLES.filter(t => t[0] !== 'vibrate' || 'vibrate' in navigator).map(([k, l]) =>
+      `<button type="button" class="tg" data-opt="${k}" aria-pressed="${!!opts[k]}"><span data-ico></span>${l}</button>`).join('')}</div>
+    <div class="p-ctl"><button type="button" id="bp" aria-label="Previous">${ic('prev', 28)}</button>
+      <button type="button" class="main" id="bt" aria-label="Play"></button>
+      <button type="button" id="bn" aria-label="Next">${ic('next', 28)}</button></div></div>`;
+  document.body.appendChild(el); tabbar(false);
+  $('#bx').onclick = exitPlayer; $('#bdone').onclick = exitPlayer;
+  $('#bp').onclick = () => jump(-1); $('#bn').onclick = () => jump(1); $('#bt').onclick = toggle;
+  el.querySelectorAll('.tg').forEach(b => b.onclick = () => {
+    const [k, , sk] = TOGGLES.find(t => t[0] === b.dataset.opt);
+    opts[k] = !opts[k]; store.set(sk, opts[k]); drawToggles();
+    if (k === 'skipNext') {             // same exercise in the new timeline, at the same offset if that phase still exists
+      const t = clock(), cur = P.ph[P.k], into = t - P.starts[P.k], done = P.done; P.ph = phasesFor(P.list); timeline();
+      const j = P.ph.findIndex(p => p.ci === cur.ci && p.i === cur.i && p.type === cur.type);
+      retrack(done ? P.total : j >= 0 ? P.starts[j] + Math.min(into, P.ph[j].dur - .05)
+        : target(Math.max(0, P.ph.findIndex(p => p.ci === cur.ci && p.i === cur.i))));
+    } else if (k === 'sound' || k === 'mix') retrack(clock());   // rebuild with / without beeps, or switch backend
+  });
+  drawToggles(); msSetup(true); render(); announce();
+}
+function drawToggles() {
+  const el = $('#player'); if (!el) return;
+  el.querySelectorAll('.tg').forEach(b => {
+    const k = b.dataset.opt, on = !!opts[k];
+    b.setAttribute('aria-pressed', String(on));
+    b.querySelector('[data-ico]').innerHTML = ic(k === 'sound' ? (on ? 'sound' : 'mute') : k === 'voice' ? 'voice' : k === 'mix' ? 'music' : k === 'vibrate' ? 'vibrate' : 'skip', 20);
+  });
+}
+function exitPlayer() { const one = P && P.list.length === 1 ? P.list[0].id : null; stopPlayer(); location.hash = one ? '#/r/' + one : '#/'; }
+function stopPlayer() {
+  if (!P) return; loop(false); unbuzz(true);
+  try { speechSynthesis.cancel(); } catch {}
+  if (P.web) webStop();
+  if (media) try { media.pause(); media.removeAttribute('src'); media.load(); } catch {}   // free the track
+  if (P.url && P.url.startsWith('blob:')) URL.revokeObjectURL(P.url);
+  msSetup(false);
+  const el = $('#player'); if (el) el.remove(); P = null;
+}
+function loop(on) {                     // redraw interval + wake lock while running (the backend keeps time either way)
+  if (on) { if (!P.timer) P.timer = setInterval(frame, 100); lockScreen(true); }
+  else { clearInterval(P.timer); P.timer = null; lockScreen(false); unbuzz(false); }
+}
+function onMedia(e) {                   // the backend is the truth: own calls, notification controls, audio-focus loss
+  if (!P || !P.url) return;
+  const run = isPlaying();
+  if (run !== P.running) { P.running = run; loop(run); }
+  frame(); msUpdate();
+  if (e === 'ended') say('Workout complete. Great job!');
+}
+function setPlaying(on) {               // ▶/⏸, space key, notification play/pause
+  if (!P || on === P.running || (on && P.done)) return;
+  if (on) {
+    if (!P.url) try { loadTrack(P.pos); } catch { return; }   // first ▶ of the run: prepare inside the gesture
+    P.running = true; playTrack();
+    if (opts.voice && !voiceOK) announce();                     // Chrome only speaks after a user gesture
+  } else { P.running = false; pauseTrack(); }
+  loop(P.running); frame(); msUpdate();
+}
+function toggle() { if (P) setPlaying(!P.running); }
+function jump(d) {                      // seek to a phase start; its start sound (GO / chime) is in the schedule
+  if (!P) return;
+  seek(target(Math.min(Math.max(0, P.k + d), P.ph.length - 1)));
+  P.k = -1; frame(); msUpdate();        // re-derived from the clock; announces the phase landed on
+}
+function retrack(pos) {                 // timeline changed, Sound toggled or backend switched: rebuild and go on at pos
+  unbuzz(true);
+  if (P.url) { loadTrack(pos); if (P.running) playTrack(); } else { P.pos = pos; P.mode = opts.mix ? 'web' : 'media'; }
+  P.k = phaseAt(pos); frame(); msUpdate();
+}
+function frame() {                      // phase + seconds left come from the backend clock; interval/events only redraw
+  if (!P) return;
+  const t = clock(), was = P.k, k = phaseAt(t);
+  P.k = k; P.done = t >= P.total - 1e-3;
+  P.left = P.done ? 0 : Math.min(P.ph[k].dur, P.starts[k] + P.ph[k].dur - t);
+  if (k !== was) { if (t - P.starts[k] < 2) announce(); msUpdate(); }
+  if (P.running) buzz(t);
+  if (document.visibilityState === 'visible') render();
+}
+function nextEx(k) { const c = P.ph[k]; for (let j = k + 1; j < P.ph.length; j++) { const p = P.ph[j];
+  if (p.type === 'work' && (p.ci !== c.ci || p.i !== c.i)) return p; } return null; }
+function announce() {
+  const p = P.ph[P.k], s = p.step;
+  if (p.newClass) say('Next class: ' + p.r.name + '. First: ' + s.n);
+  else if (p.type === 'prep') say('Next: ' + s.n + (s.sd ? ', ' + s.sd.replace('?', '') : '') + (s.r ? ', ' + s.r + ' reps' : ''));
+  else if (p.type === 'rest') say('Rest ' + p.dur + ' seconds');
+  else if (p.type === 'work' && (opts.skipNext || !(P.k > 0 && P.ph[P.k - 1].i === p.i && P.ph[P.k - 1].ci === p.ci))) say(s.n);
+}
+function render() {
+  if (!P) return;
+  const el = $('#player'), p = P.ph[P.k], s = p.step, r = p.r;
+  const ph = P.done ? 'done' : p.type, left = Math.max(0, Math.ceil(P.left)), fin = !P.done && left >= 1 && left <= 3 && p.dur > 3;
+  el.className = 'player ' + ph + (fin ? ' final' : '');
+  const exAll = r.steps.filter(x => x.k === 'ex'), exIdx = r.steps.filter((x, j) => x.k === 'ex' && j <= p.i).length;
+  $('#pcls').textContent = r.name;
+  $('#psub').textContent = (s.rd ? `Round ${s.rd} · ` : '') + (p.type === 'rest' ? `After exercise ${exIdx} / ${exAll.length}` : `Exercise ${exIdx} / ${exAll.length}`);
+  const remain = P.ph.slice(P.k + 1).reduce((t, x) => t + x.dur, 0) + Math.max(0, P.left);
+  $('#pt').textContent = fmt(remain);
+  $('#pbar').style.width = (100 * (1 - remain / P.total)) + '%';
+  if (P.done) { $('#pdonetxt').textContent = `${r.name} · ${fmt(P.total)}`; drawPlayBtn(); return; }
+  const banner = { work: ['bolt', 'WORK'], prep: ['stopwatch', p.newClass ? 'NEXT CLASS' : 'GET READY'], rest: ['restc', 'REST'] }[p.type];
+  $('#plbl').innerHTML = ic(banner[0], 22, 2.4) + banner[1];
+  $('#pdur').textContent = p.dur + 's';
+  $('#parc').setAttribute('stroke-dasharray', `${(641 * Math.max(0, P.left) / p.dur).toFixed(1)} 641`);
+  $('#pclock').textContent = String(left);
+  $('#ptimer').setAttribute('aria-label', `${left} seconds left`);
+  $('#pof').textContent = `of ${p.dur}s`;
+  $('#ppips').querySelectorAll('i').forEach((pip, i) => pip.classList.toggle('on', i < left));
+  if (fin && P.flashAt !== P.k + ':' + left) { P.flashAt = P.k + ':' + left; const f = $('#flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+  const nx = nextEx(P.k), show = p.type === 'rest' ? nx : p;
+  $('#pup').style.display = p.type === 'work' ? 'none' : '';
+  $('#pup').textContent = p.type === 'rest' ? 'REST · UP NEXT' : 'UP NEXT';
+  $('#pname').textContent = show ? show.step.n : 'Rest';
+  $('#pside').textContent = [show && show.step.sd, show && show.step.r ? '×' + show.step.r : ''].filter(Boolean).join(' · ');
+  const pics = show ? imgsOf(show.r, show.step) : [], img = $('#pimg');
+  if (pics.length) {                     // two catalogue photos (start/end position) alternate once a second
+    const src = pics[Math.floor(performance.now() / 1000) % pics.length];
+    if (img.getAttribute('src') !== src) img.src = src;
+    img.style.display = ''; $('#pnoimg').style.display = 'none';
+  } else { img.style.display = 'none'; $('#pnoimg').style.display = ''; }
+  const yt = $('#pyt'); yt.href = show ? ytAt(show.r, show.step) : r.url;
+  $('#pcue').textContent = show && show.step.c ? show.step.c : '';
+  const after = p.type === 'work' ? nx : show ? nextEx(P.ph.indexOf(show)) : null;
+  $('#pnext').style.visibility = after ? 'visible' : 'hidden';
+  if (after) { $('#pnext .k').textContent = p.type === 'work' ? 'NEXT' : 'THEN'; $('#pnn').textContent = after.step.n + (after.step.sd ? ` (${after.step.sd})` : '');
+    $('#pnd').textContent = after.step.r ? '×' + after.step.r : after.step.w + 's'; }
+  drawPlayBtn();
+}
+function drawPlayBtn() {
+  const b = $('#bt'); if (!b) return;
+  const want = P.running ? 'pause' : 'play';
+  if (b.dataset.st !== want) { b.dataset.st = want; b.innerHTML = ic(want, 36); b.setAttribute('aria-label', P.running ? 'Pause' : 'Play'); }
+  b.disabled = P.done;
+}
+document.addEventListener('keydown', e => {
+  if (!P) return;
+  if (e.key === ' ') { e.preventDefault(); toggle(); }
+  else if (e.key === 'ArrowRight') jump(1); else if (e.key === 'ArrowLeft') jump(-1);
+  else if (e.key === 'Escape') exitPlayer();
+});
+document.addEventListener('visibilitychange', () => {                  // back on screen: resync the UI, re-take the wake lock
+  if (document.visibilityState !== 'visible' || !P) return;
+  if (P.mode === 'web' && P.running && actx && actx.state !== 'running') audioCtx();
+  frame(); if (P.running) lockScreen(true);
+});
+
+/* ---------- routing (hash, so Android back closes the sheet / leaves the timer / returns to the list) ---------- */
+let lastRoute = '';
+function route() {
+  const h = location.hash.slice(1) || '/';
+  const m = h.match(/^\/(r|play)\/(.+)$/);
+  if (!m || m[1] !== 'play') stopPlayer();
+  const isSheet = /^\/filters/.test(h);
+  if (!isSheet) $('#layer').innerHTML = '';
+  if (isSheet) {
+    sheetPushed = lastRoute === '/' || lastRoute === '';
+    if (!$('#libhead')) library();
+    sheet(h === '/filters/gear');
+  } else if (!m) { library(); if (/^\/r\//.test(lastRoute) && rememberedScroll) window.scrollTo(0, rememberedScroll); }
+  else if (m[1] === 'r') { if (lastRoute === '/' || /^\/filters/.test(lastRoute)) { cameFromList = true; rememberedScroll = window.scrollY; } else if (!/^\/play/.test(lastRoute)) cameFromList = false;
+    detail(decodeURIComponent(m[2])); }
+  else { const ids = decodeURIComponent(m[2]).split('+'); if (!byId[ids[0]]) { location.hash = '#/'; return; } play(ids); }
+  if (m) libShellTab = null;            // the class page / timer replaced the list: rebuild it on the way back
+  lastRoute = h;
+}
+let rememberedScroll = 0;
+window.addEventListener('hashchange', route);
+route();
+
+/* installable app (Android: Add to home screen) + offline: only when served over http(s) */
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+})();
+</script>
+</body>
+</html>
